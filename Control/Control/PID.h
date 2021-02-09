@@ -1,0 +1,15 @@
+#ifndef PID_H_
+#define PID_H_
+
+// Direct Temperature Control
+#define COMMAND_SET_TARGET_TEMP 10
+#define COMMAND_SET_TARGET_RAMP 11
+#define COMMAND_GET_TARGET_TEMP 12
+#define COMMAND_GET_TARGET_RAMP 13
+
+#define COMMAND_GET_CURRENT_TEMP 15
+#define COMMAND_GET_CURRENT_RAMP 16
+
+#define COMMAND_DISABLE_WATCHDOG 18
+
+#endif

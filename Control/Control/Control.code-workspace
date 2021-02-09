@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "C:\\src\\Kiln\\Control"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"stack": "cpp",
+			"vector": "cpp",
+			"bitset": "cpp",
+			"memory": "cpp",
+			"xmemory": "cpp",
+			"deque": "cpp",
+			"list": "cpp",
+			"xstring": "cpp"
+		}
+	}
+}

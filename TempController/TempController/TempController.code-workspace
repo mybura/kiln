@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude": {
+            // alternative version
+            "build": true    // this excludes the folder 
+                                    // only from the root of
+                                    // your workspace 
+        }		
+	}
+}
