@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include "ThermoAmp.h"
 #include <PID_v1.h>
+#include "PID_AutoTune_v0.h"
 #include "RelayControl.h"
 
 // Creating a thermocouple instance with software SPI on three
@@ -33,9 +34,12 @@ class ControllerState {
   double GetTargetRampRate() { return TargetRampRate; }
   double GetCurrentRampRate() { return CurrentRampRate; }
 
+  void StartTuning();
+
  private:
   ThermoAmp thermoAmp;
   PID pid;
+  PID_ATune pidATune;
   SimpleMovingAverage rampRate;
   RelayControl relayControl;
   
@@ -48,8 +52,16 @@ class ControllerState {
   double lastTemperatureRead;
   unsigned long LastUpdateTime;
 
+  bool tuning;
+  byte ATuneModeRemember=2;
+  double aTuneStep=50, aTuneNoise=1;
+  unsigned int aTuneLookBack=20;
+
   void UpdateRampRate();
   void UpdateRelayState();
+  
+  void AutoTuneHelper(boolean start);
+  void ChangeAutoTune();
 };
 
 #endif

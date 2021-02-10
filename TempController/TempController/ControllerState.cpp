@@ -6,6 +6,7 @@
 ControllerState::ControllerState() : 
   thermoAmp(MAXCLK, MAXCS, MAXDO), 
   pid(&CurrentTemperature, &PIDOutput, &TargetTemperature, KP, KI, KD, DIRECT),
+  pidATune(&CurrentTemperature, &PIDOutput),
   rampRate(RAMP_FILTER_MA_SAMPLES),
   relayControl()
 {
@@ -30,6 +31,13 @@ ControllerState::ControllerState() :
   delay(500);
 }
 
+void ControllerState::StartTuning()
+{
+  tuning = false;
+  ChangeAutoTune();
+  tuning = true;
+}
+
 void ControllerState::Update()
 {
   // TODO Watchdog on Temp feedback and current used
@@ -52,7 +60,26 @@ void ControllerState::Update()
     #endif
   };
 
-  pid.Compute();
+  if(tuning)
+  {
+    byte val = (pidATune.Runtime());
+    
+    if (val!=0)
+    {
+      tuning = false;
+    }
+    if(!tuning)
+    { 
+      //we're done, set the tuning parameters
+      auto kp = pidATune.GetKp();
+      auto ki = pidATune.GetKi();
+      auto kd = pidATune.GetKd();
+      pid.SetTunings(kp,ki,kd);
+      AutoTuneHelper(false);
+    }
+  }
+  else
+    pid.Compute();
 
   UpdateRelayState();
   UpdateRampRate();
@@ -81,4 +108,34 @@ void ControllerState::UpdateRampRate()
     LastUpdateTime = millis();
     lastTemperatureRead = CurrentTemperature;
   }
+}
+
+void ControllerState::ChangeAutoTune()
+{
+  if (!tuning)
+  {
+    pidATune.SetNoiseBand(aTuneNoise);
+    pidATune.SetOutputStep(aTuneStep);
+    pidATune.SetLookbackSec((int)aTuneLookBack);
+    
+    AutoTuneHelper(true);
+    
+    tuning = true;
+  }
+  else
+  { 
+    //cancel autotune
+    pidATune.Cancel();
+    tuning = false;
+    AutoTuneHelper(false);
+  }
+}
+
+
+void ControllerState::AutoTuneHelper(boolean start)
+{
+  if (start)
+    ATuneModeRemember = pid.GetMode();
+  else
+    pid.SetMode(ATuneModeRemember);
 }
