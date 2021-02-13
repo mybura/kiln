@@ -34,7 +34,7 @@ struct PIDCommand
 class PIDInterface
 { 
   public:
-    PIDInterface(ControllerState& controllerState);
+    PIDInterface(ControllerState* controllerState)  { this->controllerState = controllerState; };
     
     void Setup();
     void Update();
@@ -45,13 +45,14 @@ class PIDInterface
     void ProcessInput(QueueArray<String*> &dataLines);
     void ProcessCommands();
 
-    float GetCurrentTemperature() { return controllerState.GetCurrentTemperature(); };
-    float GetTargetTemperature() { return controllerState.GetTargetTemperature(); };
-    float GetTargetRampRate() { return controllerState.GetTargetRampRate(); };
-    void SetTargetTemperature(float temperature) { controllerState.SetTargetTemperature(temperature); };
-    void SetTargetRampRate(float rampRate) { controllerState.SetTargetRampRate(rampRate); };
+    float GetCurrentTemperature() { return controllerState->GetCurrentTemperature(); };
+    float GetTargetTemperature() { return controllerState->GetTargetTemperature(); };
+    float GetTargetRampRate() { return controllerState->GetTargetRampRate(); };
+    void SetTargetTemperature(float temperature) { controllerState->SetTargetTemperature(temperature); };
+    void SetTargetRampRate(float rampRate) { controllerState->SetTargetRampRate(rampRate); };
 
-    NeoSWSerial Serial;
+
+    NeoSWSerial* Serial;
   private:
     ECommandState currentCommandState;
     String lastCommand;
@@ -59,12 +60,12 @@ class PIDInterface
     QueueArray<PIDCommand*> commands;
     QueueArray<String*> dataLines;
 
-    PIDInterface() : Serial((uint8_t) RX_PIN, (uint8_t) TX_PIN) {};
+    PIDInterface() {};
 
     ECommandState HandleCommand(String &command);
     ECommandState HandleParameter(String &parameter);
    
-    ControllerState& controllerState;
+    ControllerState* controllerState;
     byte LastCommand;
 };
 

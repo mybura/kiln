@@ -1,47 +1,42 @@
 #include "ControllerState.h"
 
-#define RAMP_FILTER_MA_SAMPLES 20
-#define RAMPRATE_SAMPLING_INTERVAL 5000
+#define RAMP_FILTER_MA_SAMPLES 10
+#define RAMPRATE_SAMPLING_INTERVAL 2000
 
-ControllerState::ControllerState() : 
-  thermoAmp(MAXCLK, MAXCS, MAXDO), 
-  pid(&CurrentTemperature, &PIDOutput, &TargetTemperature, KP, KI, KD, DIRECT),
-  pidATune(&CurrentTemperature, &PIDOutput),
-  rampRate(RAMP_FILTER_MA_SAMPLES),
-  relayControl()
+ControllerState::ControllerState()
 {
     #ifdef SIMULATE_TEMPRETATURE_IN
   CurrentTemperature = 10;
     #else
   CurrentTemperature = 0;
     #endif
+  tuning = false;
   TargetTemperature = 0;
   CurrentRampRate = 0;
   TargetRampRate = 0;
   lastTemperatureRead = 0;
   LastUpdateTime = millis();
   
-  pid.SetOutputLimits(0, 255); // 255 = 100% duty cycle on PWM
-  pid.SetMode(AUTOMATIC);
+  thermoAmp = new ThermoAmp(MAXCLK, MAXCS, MAXDO);
+  pid = new PID(&CurrentTemperature, &PIDOutput, &TargetTemperature, KP, KI, KD, DIRECT);
+  pid->SetOutputLimits(0, 255); // 255 = 100% duty cycle on PWM
+  pid->SetMode(AUTOMATIC);
+  pidATune = new PID_ATune(&CurrentTemperature, &PIDOutput);
 
-  rampRate.begin();
-  relayControl.Setup();
-  
+  rampRate = new SimpleMovingAverage(RAMP_FILTER_MA_SAMPLES);  
+  rampRate->begin();
+  relayControl = new RelayControl();
+
+  relayControl->Setup();
+ 
   // wait for MAX chip to stabilize
   delay(500);
-}
-
-void ControllerState::StartTuning()
-{
-  tuning = false;
-  ChangeAutoTune();
-  tuning = true;
 }
 
 void ControllerState::Update()
 {
   // TODO Watchdog on Temp feedback and current used
-  float c = thermoAmp.readFilteredCelsius();
+  float c = thermoAmp->readFilteredCelsius();
   if (isnan(c)) 
   {
      Serial.println("Something wrong with thermocouple!");
@@ -62,24 +57,39 @@ void ControllerState::Update()
 
   if(tuning)
   {
-    byte val = (pidATune.Runtime());
-    
+    auto temperature = CurrentTemperature;
+    Serial.print("Current Temperature: ");
+    Serial.println(temperature);
+
+    byte val = (pidATune->Runtime());
+    if (PIDOutput < 0) PIDOutput = 0;
+    if (PIDOutput > 255) PIDOutput = 255;
+
+    Serial.print("Current Output: ");
+    Serial.println(PIDOutput);
+
     if (val!=0)
     {
+      Serial.println("Stopping Tuning.");
       tuning = false;
     }
     if(!tuning)
     { 
+      Serial.println("Tuning done. Updating PID.");
+
       //we're done, set the tuning parameters
-      auto kp = pidATune.GetKp();
-      auto ki = pidATune.GetKi();
-      auto kd = pidATune.GetKd();
-      pid.SetTunings(kp,ki,kd);
+      auto kp = pidATune->GetKp();
+      auto ki = pidATune->GetKi();
+      auto kd = pidATune->GetKd();
+    //  pid->SetTunings(kp,ki,kd);
+      
       AutoTuneHelper(false);
+     
+      DisplayTuning();
     }
   }
   else
-    pid.Compute();
+    pid->Compute();
 
   UpdateRelayState();
   UpdateRampRate();
@@ -89,9 +99,31 @@ void ControllerState::Update()
 void ControllerState::UpdateRelayState()
 {
   if (TargetTemperature == 0)
-    relayControl.SetDutyCycle(0);
+    relayControl->SetDutyCycle(0);
   else
-    relayControl.SetDutyCycle(PIDOutput / 255.0);
+    relayControl->SetDutyCycle(PIDOutput / 255.0);
+}
+
+void ControllerState::StartTuning()
+{
+  Serial.println("Starting tuning.");
+  tuning = false;
+  ChangeAutoTune();
+  tuning = true;
+}
+
+void ControllerState::DisplayTuning()
+{
+    auto kp = pidATune->GetKp();
+    auto ki = pidATune->GetKi();
+    auto kd = pidATune->GetKd();
+  
+    Serial.print("Tuner output: KP, KI, KD");
+    Serial.print(kp);
+    Serial.print(",");
+    Serial.print(ki);
+    Serial.print(",");
+    Serial.println(kd);
 }
 
 void ControllerState::UpdateRampRate()
@@ -104,19 +136,25 @@ void ControllerState::UpdateRampRate()
   {
     auto timeInHours = (timeDelta / 1000.0) * 60 * 60;
     auto instantRampRate = (CurrentTemperature - lastTemperatureRead) / timeInHours;
-    CurrentRampRate = rampRate.update(instantRampRate);
+    CurrentRampRate = rampRate->update(instantRampRate);
     LastUpdateTime = millis();
     lastTemperatureRead = CurrentTemperature;
   }
 }
-
 void ControllerState::ChangeAutoTune()
 {
   if (!tuning)
   {
-    pidATune.SetNoiseBand(aTuneNoise);
-    pidATune.SetOutputStep(aTuneStep);
-    pidATune.SetLookbackSec((int)aTuneLookBack);
+    PIDOutput = 255;
+    TargetTemperature = CurrentTemperature;
+
+    Serial.print("Tuning target temperature: ");
+    Serial.println(TargetTemperature);
+
+    pidATune->SetNoiseBand(aTuneNoise);
+    pidATune->SetOutputStep(aTuneStep);
+    pidATune->SetControlType(1); // PID
+    pidATune->SetLookbackSec((int)aTuneLookBack);
     
     AutoTuneHelper(true);
     
@@ -125,17 +163,17 @@ void ControllerState::ChangeAutoTune()
   else
   { 
     //cancel autotune
-    pidATune.Cancel();
+    pidATune->Cancel();
     tuning = false;
     AutoTuneHelper(false);
+    TargetTemperature = 0;
   }
 }
-
 
 void ControllerState::AutoTuneHelper(boolean start)
 {
   if (start)
-    ATuneModeRemember = pid.GetMode();
+    ATuneModeRemember = pid->GetMode();
   else
-    pid.SetMode(ATuneModeRemember);
+    pid->SetMode(ATuneModeRemember);
 }

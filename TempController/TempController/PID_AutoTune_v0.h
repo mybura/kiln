@@ -1,6 +1,5 @@
 #ifndef PID_AutoTune_v0
 #define PID_AutoTune_v0
-#define LIBRARY_VERSION	0.0.1
 
 class PID_ATune
 {
@@ -40,7 +39,7 @@ class PID_ATune
 	int sampleTime;
 	int nLookBack;
 	int peakType;
-	double lastInputs[101];
+	double lastInputs[100];
     double peaks[10];
 	int peakCount;
 	bool justchanged;
@@ -52,4 +51,3 @@ class PID_ATune
 	
 };
 #endif
-

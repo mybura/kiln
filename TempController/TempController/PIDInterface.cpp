@@ -19,22 +19,18 @@ const String REPLY_GET_CURRENT_TEMP = "RCT";
 const String REPLY_GET_TARGET_RAMP = "RTR";
 const String REPLY_GET_CURRENT_RAMP = "RCR";
 
-PIDInterface::PIDInterface(ControllerState& controllerState) : Serial((uint8_t) RX_PIN, (uint8_t) TX_PIN)
-{ 
-  this->controllerState = controllerState; 
-
-  pinMode(RX_PIN, INPUT);
-  pinMode(TX_PIN, OUTPUT);
-};
-
 void PIDInterface::Setup()
 {
   inputString.reserve(LINE_BUFFER_SIZE);
   lastCommand.reserve(LINE_BUFFER_SIZE);
   inputString = "";
   
+  pinMode(RX_PIN, INPUT);
+  pinMode(TX_PIN, OUTPUT);
+  
   currentCommandState = WaitingCommandStart;
-  Serial.begin(UART_SPEED);
+  Serial = new NeoSWSerial(RX_PIN, TX_PIN);
+  Serial->begin(UART_SPEED);
 }
 
 void PIDInterface::ProcessInput(QueueArray<String*> &dataLines)
@@ -75,7 +71,7 @@ ECommandState PIDInterface::HandleCommand(String &command)
     { result = WaitingParameter; delete newCommand; newCommand = NULL; }
   else if (command == COMMAND_SET_TARGET_RAMP)
     { result = WaitingParameter; delete newCommand; newCommand = NULL; }
-  else { delete newCommand; newCommand = NULL; Serial.print("Unknown command: '"); Serial.print(command); Serial.println("'");}
+  else { delete newCommand; newCommand = NULL; Serial->print("Unknown command: '"); Serial->print(command); Serial->println("'");}
 
   if (newCommand != NULL)
     commands.enqueue(newCommand);
@@ -112,11 +108,11 @@ ECommandState PIDInterface::HandleParameter(String &parameter)
 
 void PIDInterface::Update()
 {
-  while (Serial.available()) {
-    auto inChar = (char)Serial.read();
+  while (Serial->available()) {
+    auto inChar = (char)Serial->read();
 
     if (inChar == '\n' || inChar == '\r') {
-      if ((char)Serial.peek() == '\n') Serial.read();  //  Handle CRLF
+      if ((char)Serial->peek() == '\n') Serial->read();  //  Handle CRLF
       dataLines.enqueue(new String(inputString));
       inputString = "";
     }
@@ -163,7 +159,7 @@ void PIDInterface::ProcessCommands()
     else
       reply += " UNKNOWN COMMAND";
 
-    Serial.println(reply);
+    Serial->println(reply);
     
     delete currentCommand;
   }

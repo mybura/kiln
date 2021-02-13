@@ -62,9 +62,9 @@ void I2CInterface::OnDataReceived(int bytesReceived)
             Wire.readBytes((char *)&parameter, sizeof(parameter)); 
 
             if (command == COMMAND_SET_TARGET_TEMP)
-                controllerState.SetTargetTemperature(parameter);
+                controllerState->SetTargetTemperature(parameter);
             else if (command == COMMAND_SET_TARGET_RAMP)
-                controllerState.SetTargetRampRate(parameter);
+                controllerState->SetTargetRampRate(parameter);
 
             break;   
         }       
@@ -77,10 +77,10 @@ void I2CInterface::OnDataRequested()
     float returnValue = 0;
     switch (ReadRegisterIndex)
     {
-        case COMMAND_GET_TARGET_TEMP: returnValue = controllerState.GetTargetTemperature(); break;
-        case COMMAND_GET_TARGET_RAMP: returnValue = controllerState.GetTargetRampRate(); break;
-        case COMMAND_GET_CURRENT_TEMP: returnValue = controllerState.GetCurrentTemperature(); break; 
-        case COMMAND_GET_CURRENT_RAMP: returnValue = controllerState.GetCurrentRampRate(); break;
+        case COMMAND_GET_TARGET_TEMP: returnValue = controllerState->GetTargetTemperature(); break;
+        case COMMAND_GET_TARGET_RAMP: returnValue = controllerState->GetTargetRampRate(); break;
+        case COMMAND_GET_CURRENT_TEMP: returnValue = controllerState->GetCurrentTemperature(); break; 
+        case COMMAND_GET_CURRENT_RAMP: returnValue = controllerState->GetCurrentRampRate(); break;
     }
 
     Wire.write((byte *)&returnValue, sizeof(returnValue));

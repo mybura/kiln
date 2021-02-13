@@ -14,9 +14,15 @@
 #define MAXCLK  9
 
 // PID values
-#define KP 3
-#define KI 3.5
-#define KD 0.7
+#define KP 14.53
+#define KI 0.3
+#define KD 174.7
+
+
+// PID tuning values
+#define TUNE_STEP 50.0
+#define TUNE_NOISE 1.0
+#define TUNE_LOOPBACK_SEC 20
 
 //#define SIMULATE_TEMPRETATURE_IN 1
 
@@ -26,6 +32,9 @@ class ControllerState {
 
   void Update();
 
+  void StartTuning();
+  void DisplayTuning();
+
   void SetTargetTemperature(double temperature) { TargetTemperature = temperature; }
   void SetTargetRampRate(double rate) { TargetRampRate = rate; }
   double GetTargetTemperature() { return TargetTemperature; }
@@ -34,14 +43,12 @@ class ControllerState {
   double GetTargetRampRate() { return TargetRampRate; }
   double GetCurrentRampRate() { return CurrentRampRate; }
 
-  void StartTuning();
-
  private:
-  ThermoAmp thermoAmp;
-  PID pid;
-  PID_ATune pidATune;
-  SimpleMovingAverage rampRate;
-  RelayControl relayControl;
+  ThermoAmp* thermoAmp;
+  PID* pid;
+  PID_ATune* pidATune;
+  SimpleMovingAverage* rampRate;
+  RelayControl* relayControl;
   
   double CurrentTemperature;
   double TargetTemperature;
@@ -52,16 +59,13 @@ class ControllerState {
   double lastTemperatureRead;
   unsigned long LastUpdateTime;
 
-  bool tuning;
+  bool tuning  = false;
   byte ATuneModeRemember=2;
-  double aTuneStep=50, aTuneNoise=1;
-  unsigned int aTuneLookBack=20;
-
+  double aTuneStep=255, aTuneNoise=2;
+  unsigned int aTuneLookBack = 20;
   void UpdateRampRate();
   void UpdateRelayState();
-  
   void AutoTuneHelper(boolean start);
-  void ChangeAutoTune();
-};
+  void ChangeAutoTune();};
 
 #endif

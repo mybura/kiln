@@ -26,7 +26,7 @@ class I2CInterface
 {
   public:
 
-    I2CInterface(ControllerState& controllerState) { this->controllerState = controllerState; };
+    I2CInterface(ControllerState* controllerState) { this->controllerState = controllerState; };
     void Setup();
     void Update();
 
@@ -35,7 +35,7 @@ class I2CInterface
   private:
   
     uint16_t ReadRegisterIndex = COMMAND_GET_TARGET_TEMP;
-    ControllerState& controllerState;
+    ControllerState* controllerState;
 };
 
 #endif
